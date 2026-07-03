@@ -49,6 +49,7 @@
             display: flex;
             justify-content: flex-end;
             margin-bottom: 20px;
+            gap: 10px;
         }
 
         .btn {
@@ -86,7 +87,7 @@
         .btn-danger { background-color: var(--danger); }
         .btn-danger:hover { background-color: #b91c1c; box-shadow: 0 4px 6px rgba(224, 36, 36, 0.2); }
         
-        .btn-warning { background-color: var(--warning); }
+        .btn-warning { background-color: var(--warning); color: white; }
         .btn-warning:hover { background-color: #b45309; box-shadow: 0 4px 6px rgba(217, 119, 6, 0.2); }
 
         .btn-success { background-color: var(--success); }
@@ -349,6 +350,7 @@
 
         .toast.success { background-color: var(--success); }
         .toast.error { background-color: var(--danger); }
+        .toast.warning { background-color: var(--warning); color: #fff; }
         
         .hidden { display: none !important; }
         .admin-only { display: none; }
@@ -361,6 +363,8 @@
     <div class="container">
         <!-- Top Navigation -->
         <div class="top-bar">
+            <!-- New Data Merge Tool for Admin -->
+            <button class="btn btn-warning admin-only" onclick="mergeDatabases()">Merge Databases</button>
             <button class="btn btn-outline" id="adminLoginBtn" onclick="openLoginModal()">Admin Login</button>
             <button class="btn btn-outline hidden" id="adminLogoutBtn" onclick="logoutAdmin()">Logout Admin</button>
         </div>
@@ -436,7 +440,7 @@
                 <!-- Admin Export Tools -->
                 <div class="admin-only" style="gap: 10px;">
                     <button class="btn btn-success" onclick="exportToExcel()">Download Excel</button>
-                    <button class="btn btn-warning" style="color:white;" onclick="exportToPDF()">Download PDF</button>
+                    <button class="btn btn-warning" onclick="exportToPDF()">Download PDF</button>
                 </div>
             </div>
 
@@ -590,15 +594,15 @@
             "annapurna_portal",
             "artifacts"
         ];
-        // Define where NEW applications will be saved
+        // Define where NEW applications will be saved, and where merged data goes
         const PRIMARY_COLLECTION = "annapurna_submissions";
 
         // Global State
         window.allApplications = [];
-        window.allDataByCollection = {}; // Tracks data from multiple collections
+        window.allDataByCollection = {}; 
         window.isAdmin = false;
         let currentSort = { column: 'date', asc: false };
-        let unsubscribes = []; // Array to hold multiple listeners
+        let unsubscribes = []; 
 
         // Block & Panchayat Data
         const locationData = {
@@ -622,7 +626,7 @@
             setTimeout(() => {
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            }, type === 'warning' ? 5000 : 3000); // Warnings stay slightly longer
         };
 
         window.openModal = function(id) {
@@ -692,34 +696,34 @@
         });
 
         function fetchDataRealtime() {
-            // Ensure auth is initialized before querying
             if (!auth.currentUser) {
                  console.error("Cannot fetch data: User is not authenticated.");
                  return;
             }
 
-            // Clear old listeners if they exist
             unsubscribes.forEach(unsub => unsub());
             unsubscribes = [];
             window.allDataByCollection = {};
 
-            // Setup a listener for EACH possible collection
             COLLECTION_PATHS.forEach(path => {
-                window.allDataByCollection[path] = []; // Initialize empty array
+                window.allDataByCollection[path] = []; 
                 const q = query(collection(db, path));
                 
                 const unsub = onSnapshot(q, (snapshot) => {
                     let collectionDocs = [];
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        // Only add documents that look like they contain application data
-                        // and provide safe default values so old data doesn't crash the table
-                        if (data.appId || data.name || data.panchayat || data.applicationId) {
+                        
+                        // Enhanced safety check to prevent empty field crashes
+                        const rawAppId = data.appId || data.applicationId || '';
+                        const rawName = data.name || data.applicantName || '';
+                        
+                        if (rawAppId.toString().trim() !== '' || rawName.toString().trim() !== '') {
                             collectionDocs.push({ 
                                 docId: doc.id, 
                                 _collectionPath: path,
-                                appId: data.appId || data.applicationId || 'N/A',
-                                name: data.name || data.applicantName || 'Unknown',
+                                appId: rawAppId,
+                                name: rawName,
                                 block: data.block || 'Santuri',
                                 panchayat: data.panchayat || data.ward || '',
                                 date: data.date || '',
@@ -730,10 +734,8 @@
                         }
                     });
                     
-                    // Update this specific collection's chunk of data
                     window.allDataByCollection[path] = collectionDocs;
                     
-                    // Merge all data from all collections into the main array
                     window.allApplications = [];
                     COLLECTION_PATHS.forEach(p => {
                         if (window.allDataByCollection[p]) {
@@ -741,11 +743,10 @@
                         }
                     });
                     
-                    // Sort the combined data manually in JavaScript
                     window.allApplications.sort((a, b) => {
                         const timeA = a.createdAt || 0;
                         const timeB = b.createdAt || 0;
-                        return timeB - timeA; // Sort Descending (Newest first)
+                        return timeB - timeA; 
                     });
                     
                     renderTable();
@@ -783,6 +784,57 @@
             }
         }
 
+        // --- NEW ADMIN TOOL: MERGE DATABASES ---
+        window.mergeDatabases = async function() {
+            if(!confirm("This tool will copy all data from old Firebase folders into the main folder ('annapurna_submissions'). Are you sure you want to proceed?")) return;
+            
+            showToast("Merging records... Please wait.", "warning");
+            let mergedCount = 0;
+
+            const mainCollectionData = window.allDataByCollection[PRIMARY_COLLECTION] || [];
+
+            for (const path of COLLECTION_PATHS) {
+                if (path === PRIMARY_COLLECTION) continue; // Don't copy from the main folder into itself
+
+                const oldDocs = window.allDataByCollection[path] || [];
+                
+                for (const app of oldDocs) {
+                    // Check if this appId is ALREADY in the main folder to prevent duplication
+                    const existsInMain = mainCollectionData.some(mainApp => mainApp.appId === app.appId);
+                    
+                    if (!existsInMain) {
+                        try {
+                            const newRecord = {
+                                date: app.date || '',
+                                appId: app.appId || '',
+                                name: app.name || '',
+                                block: app.block || 'Santuri',
+                                panchayat: app.panchayat || '',
+                                adminRemark: app.adminRemark || '',
+                                createdAt: app.createdAt || Date.now()
+                            };
+                            await addDoc(collection(db, PRIMARY_COLLECTION), newRecord);
+                            mergedCount++;
+                            // Add it locally to our check-array to prevent double-copying within the same loop
+                            mainCollectionData.push(newRecord); 
+                        } catch (err) {
+                            console.error(`Failed to copy App ID ${app.appId}`, err);
+                        }
+                    }
+                }
+            }
+            
+            if(mergedCount > 0) {
+                showToast(`Success! Copied ${mergedCount} old records into the main database.`, "success");
+                setTimeout(()=> {
+                    alert(`Merge Complete! \n\nIMPORTANT: You will now see duplicate entries on your screen. \nTo fix this, go to your Firebase Console -> Firestore Database and completely DELETE the old folders (artifacts, annapurna-yojna-portal, annapurna_portal).`);
+                }, 1500);
+            } else {
+                showToast("All data is already in the main folder! Nothing to merge.", "success");
+            }
+        };
+        // ---------------------------------------
+
         window.previewSubmission = function() {
             if(!document.getElementById('submissionForm').checkValidity()) {
                 document.getElementById('submissionForm').reportValidity();
@@ -807,7 +859,6 @@
         };
 
         window.executeSubmission = async function() {
-            // Verify Authentication State before attempting write
             if (!auth.currentUser) {
                 showToast("Connection error: Not authenticated. Please refresh the page.", "error");
                 return;
@@ -828,7 +879,6 @@
             };
 
             try {
-                // Save new submissions to the Primary Collection
                 await addDoc(collection(db, PRIMARY_COLLECTION), newData);
                 closeModal('confirmSubmitModal');
                 document.getElementById('submissionForm').reset();
@@ -861,7 +911,7 @@
             const filterBlock = document.getElementById('filterBlock').value;
             const filterPanchayat = document.getElementById('filterPanchayat').value;
 
-            // Filter Data (With safety checks for missing fields)
+            // Filter Data
             let displayData = window.allApplications.filter(app => {
                 const searchStrId = (app.appId || '').toString().toLowerCase();
                 const searchStrName = (app.name || '').toString().toLowerCase();
@@ -891,7 +941,6 @@
             displayData.forEach(app => {
                 const tr = document.createElement('tr');
                 
-                // Formulate Admin Remark Cell
                 let remarkCell = '';
                 if (window.isAdmin) {
                     remarkCell = `
@@ -905,7 +954,6 @@
                     }
                 }
 
-                // Action Cell (Admin Only)
                 const actionCell = `
                     <div class="action-cell admin-only">
                         <button class="btn ${app.adminRemark ? 'btn-outline' : 'btn-success'}" style="padding: 6px 12px; font-size:12px;" onclick="saveAdminRemark('${app.docId}')">
@@ -1042,12 +1090,10 @@
                 ["Date", "Application ID", "Beneficiary Name", "Block/Municipality", "Panchayat/Ward", "Admin Remark for Current Status"]
             ];
             
-            // Apply current filters to export
             const search = document.getElementById('searchInput').value.toLowerCase();
             const filterBlock = document.getElementById('filterBlock').value;
             const filterPanchayat = document.getElementById('filterPanchayat').value;
             
-            // Filter Data (With safety checks for missing fields)
             let exportData = window.allApplications.filter(app => {
                 const searchStrId = (app.appId || '').toString().toLowerCase();
                 const searchStrName = (app.name || '').toString().toLowerCase();
@@ -1080,7 +1126,6 @@
             const filterBlock = document.getElementById('filterBlock').value;
             const filterPanchayat = document.getElementById('filterPanchayat').value;
             
-            // Filter Data (With safety checks for missing fields)
             let exportData = window.allApplications.filter(app => {
                 const searchStrId = (app.appId || '').toString().toLowerCase();
                 const searchStrName = (app.name || '').toString().toLowerCase();
@@ -1104,7 +1149,6 @@
 
             doc.save('Annapurna_Yojna_List.pdf');
         };
-
     </script>
 </body>
 </html>
