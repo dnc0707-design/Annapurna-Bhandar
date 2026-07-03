@@ -467,6 +467,14 @@
             <div class="table-responsive">
                 <table id="dataTable">
                     <thead>
+                        <tr>
+                            <th class="sortable" onclick="handleSort('id')">App ID <span id="sort_id" class="sort-icon"></span></th>
+                            <th class="sortable" onclick="handleSort('name')">Beneficiary Name <span id="sort_name" class="sort-icon"></span></th>
+                            <th class="sortable" onclick="handleSort('panchayat')">Panchayat <span id="sort_panchayat" class="sort-icon"></span></th>
+                            <th class="sortable" onclick="handleSort('block')">Block <span id="sort_block" class="sort-icon"></span></th>
+                            <th class="sortable" style="width: 35%;" onclick="handleSort('adminReason')">Admin Remark <span id="sort_adminReason" class="sort-icon"></span></th>
+                        </tr>
+                    </thead>
                 <tbody id="tableBody">
                     <!-- Data populated via JS -->
                 </tbody>
