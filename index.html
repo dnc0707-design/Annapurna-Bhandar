@@ -582,13 +582,23 @@
         });
         
         const auth = getAuth(app);
-        const APP_COLLECTION_PATH = "annapurna_submissions";
+        
+        // Define all collections where data might have been saved in the past
+        const COLLECTION_PATHS = [
+            "annapurna_submissions", 
+            "annapurna-yojna-portal", 
+            "annapurna_portal",
+            "artifacts"
+        ];
+        // Define where NEW applications will be saved
+        const PRIMARY_COLLECTION = "annapurna_submissions";
 
         // Global State
         window.allApplications = [];
+        window.allDataByCollection = {}; // Tracks data from multiple collections
         window.isAdmin = false;
         let currentSort = { column: 'date', asc: false };
-        let unsubscribe = null;
+        let unsubscribes = []; // Array to hold multiple listeners
 
         // Block & Panchayat Data
         const locationData = {
@@ -688,36 +698,47 @@
                  return;
             }
 
-            // REMOVED orderBy from the query because Firestore completely hides older records 
-            // that were saved without a 'createdAt' timestamp field.
-            const q = query(collection(db, APP_COLLECTION_PATH));
-            
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                window.allApplications = [];
-                snapshot.forEach(doc => {
-                    window.allApplications.push({ docId: doc.id, ...doc.data() });
+            // Clear old listeners if they exist
+            unsubscribes.forEach(unsub => unsub());
+            unsubscribes = [];
+            window.allDataByCollection = {};
+
+            // Setup a listener for EACH possible collection
+            COLLECTION_PATHS.forEach(path => {
+                window.allDataByCollection[path] = []; // Initialize empty array
+                const q = query(collection(db, path));
+                
+                const unsub = onSnapshot(q, (snapshot) => {
+                    let collectionDocs = [];
+                    snapshot.forEach(doc => {
+                        // Store the collection path with the data so we can edit/delete it later
+                        collectionDocs.push({ docId: doc.id, _collectionPath: path, ...doc.data() });
+                    });
+                    
+                    // Update this specific collection's chunk of data
+                    window.allDataByCollection[path] = collectionDocs;
+                    
+                    // Merge all data from all collections into the main array
+                    window.allApplications = [];
+                    COLLECTION_PATHS.forEach(p => {
+                        if (window.allDataByCollection[p]) {
+                            window.allApplications = window.allApplications.concat(window.allDataByCollection[p]);
+                        }
+                    });
+                    
+                    // Sort the combined data manually in JavaScript
+                    window.allApplications.sort((a, b) => {
+                        const timeA = a.createdAt || 0;
+                        const timeB = b.createdAt || 0;
+                        return timeB - timeA; // Sort Descending (Newest first)
+                    });
+                    
+                    renderTable();
+                }, (error) => {
+                    console.warn(`Fetch error for collection ${path}: `, error);
                 });
                 
-                // Sort the data manually in JavaScript to ensure no old records are lost
-                window.allApplications.sort((a, b) => {
-                    const timeA = a.createdAt || 0;
-                    const timeB = b.createdAt || 0;
-                    return timeB - timeA; // Sort Descending (Newest first)
-                });
-                
-                renderTable();
-            }, (error) => {
-                console.error("Fetch error: ", error);
-                if(error.code === 'permission-denied') {
-                     document.getElementById('tableBody').innerHTML = `
-                        <tr><td colspan="7" style="color:var(--danger); text-align:center; padding:20px;">
-                            <b>Firebase Security Rules Error!</b><br>
-                            Your database rules are blocking access. Go to Firebase Console -> Firestore Database -> Rules and set them to:<br><br>
-                            <code>allow read, write: if true;</code>
-                        </td></tr>`;
-                } else {
-                     showToast("Error loading database.", "error");
-                }
+                unsubscribes.push(unsub);
             });
         }
 
@@ -729,17 +750,17 @@
                 showToast("Migrating old data to database...", "success");
                 for (let app of localData) {
                     try {
-                        await addDoc(collection(db, APP_COLLECTION_PATH), {
-                            date: new Date().toISOString().split('T')[0],
-                            appId: app.id,
-                            name: app.name,
-                            block: app.block || "Santuri",
-                            panchayat: app.panchayat,
-                            adminRemark: app.adminRemark || "",
-                            createdAt: Date.now()
+                        await addDoc(collection(db, PRIMARY_COLLECTION), {
+                            date: app.date || new Date().toISOString().split('T')[0],
+                            appId: app.appId || '',
+                            name: app.name || '',
+                            block: app.block || 'Santuri',
+                            panchayat: app.panchayat || '',
+                            adminRemark: app.adminRemark || '',
+                            createdAt: app.createdAt || Date.now()
                         });
-                    } catch (e) {
-                        console.error("Migration item failed", e);
+                    } catch (err) {
+                        console.error("Error migrating document:", err);
                     }
                 }
                 localStorage.removeItem('annapurnaApps'); // Clear after success
@@ -792,7 +813,8 @@
             };
 
             try {
-                await addDoc(collection(db, APP_COLLECTION_PATH), newData);
+                // Save new submissions to the Primary Collection
+                await addDoc(collection(db, PRIMARY_COLLECTION), newData);
                 closeModal('confirmSubmitModal');
                 document.getElementById('submissionForm').reset();
                 document.getElementById('appDate').valueAsDate = new Date();
@@ -918,12 +940,15 @@
         };
 
         window.saveAdminRemark = async function(docId) {
+            const appData = window.allApplications.find(a => a.docId === docId);
+            if(!appData) return;
+            
             const textEl = document.getElementById(`remark_${docId}`);
             if(!textEl) return;
             const newRemark = textEl.value;
             
             try {
-                const docRef = doc(db, APP_COLLECTION_PATH, docId);
+                const docRef = doc(db, appData._collectionPath, docId);
                 await updateDoc(docRef, { adminRemark: newRemark });
                 showToast("Remark saved successfully!");
             } catch (e) {
@@ -948,6 +973,9 @@
 
         window.saveEdit = async function() {
             const docId = document.getElementById('editDocId').value;
+            const appData = window.allApplications.find(a => a.docId === docId);
+            if(!appData) return;
+
             const newDate = document.getElementById('editDate').value;
             const newAppId = document.getElementById('editAppId').value.trim();
             const newName = document.getElementById('editName').value.trim();
@@ -955,7 +983,7 @@
             const newPanchayat = document.getElementById('editPanchayat').value;
 
             try {
-                const docRef = doc(db, APP_COLLECTION_PATH, docId);
+                const docRef = doc(db, appData._collectionPath, docId);
                 await updateDoc(docRef, {
                     date: newDate,
                     appId: newAppId,
@@ -979,8 +1007,11 @@
 
         window.executeDelete = async function() {
             const docId = document.getElementById('deleteDocId').value;
+            const appData = window.allApplications.find(a => a.docId === docId);
+            if(!appData) return;
+            
             try {
-                await deleteDoc(doc(db, APP_COLLECTION_PATH, docId));
+                await deleteDoc(doc(db, appData._collectionPath, docId));
                 closeModal('deleteModal');
                 showToast("Entry deleted successfully.");
             } catch(e) {
