@@ -359,6 +359,11 @@
         <form id="applicationForm">
             <div class="form-grid">
                 <div class="form-group">
+                    <label for="submitDate">Application submission date <span style="color:red;">*</span></label>
+                    <input type="date" id="submitDate" required>
+                </div>
+
+                <div class="form-group">
                     <label for="appId">Application ID <span style="color:red;">*</span></label>
                     <input type="text" id="appId" required placeholder="Enter unique Application ID">
                     <div id="idError" class="error-msg">This Application ID already exists!</div>
@@ -426,6 +431,7 @@
         <h3 style="color: var(--primary-color);">Confirm Details</h3>
         <p>Please review your information before submitting:</p>
         <div class="confirm-details">
+            <p><strong>Date:</strong> <span id="confirmDate"></span></p>
             <p><strong>App ID:</strong> <span id="confirmId"></span></p>
             <p><strong>Name:</strong> <span id="confirmName"></span></p>
             <p><strong>Panchayat:</strong> <span id="confirmPanchayat"></span></p>
@@ -471,6 +477,19 @@
     let currentSearch = '';
     let currentSort = { column: 'timestamp', order: 'desc' };
     let dbReady = false;
+
+    // Auto-fill the date box with today's date
+    document.addEventListener('DOMContentLoaded', () => {
+        const dateInput = document.getElementById('submitDate');
+        if (dateInput) {
+            // Gets today's date in YYYY-MM-DD format for the input box
+            const today = new Date();
+            // Using offset to get correct local date string
+            const offset = today.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(today - offset)).toISOString().split('T')[0];
+            dateInput.value = localISOTime;
+        }
+    });
 
     window.showToast = function(message, type = 'success') {
         const container = document.getElementById('toastContainer');
@@ -586,7 +605,7 @@
 
         filteredApps.forEach((app) => {
             const tr = document.createElement('tr');
-            const submitDate = app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A';
+            const submitDate = app.formDate ? new Date(app.formDate).toLocaleDateString('en-IN') : (app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A');
             let reasonHTML = '';
             if (isAdminLoggedIn) {
                 const buttonText = (app.adminReason && app.adminReason.trim() !== '') ? 'Update Remark' : 'Save Remark';
@@ -620,7 +639,7 @@
     window.exportToExcel = function() {
         if(applications.length === 0) return window.showToast("No data to export", "error");
         const data = applications.map(app => ({
-            "Date": app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A',
+            "Date": app.formDate ? new Date(app.formDate).toLocaleDateString('en-IN') : (app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A'),
             "Application ID": app.id,
             "Beneficiary Name": app.name,
             "Panchayat": app.panchayat,
@@ -640,7 +659,7 @@
         doc.text("Annapurna Yojna Missing List - Santuri Block", 14, 15);
         const tableColumn = ["Date", "App ID", "Beneficiary Name", "Panchayat", "Block", "Admin Remark"];
         const tableRows = applications.map(app => [
-            app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A', app.id, app.name, app.panchayat, app.block, app.adminReason || "Pending Admin Review"
+            app.formDate ? new Date(app.formDate).toLocaleDateString('en-IN') : (app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A'), app.id, app.name, app.panchayat, app.block, app.adminReason || "Pending Admin Review"
         ]);
         doc.autoTable({
             head: [tableColumn], body: tableRows, startY: 20, styles: { fontSize: 9 }, headStyles: { fillColor: [0, 86, 179] }
@@ -743,6 +762,7 @@
         const appName = document.getElementById('appName').value.trim();
         const panchayat = document.getElementById('panchayat').value;
         const block = document.getElementById('block').value;
+        const submitDate = document.getElementById('submitDate').value;
 
         try {
             const docRef = doc(db, 'artifacts', APP_COLLECTION_PATH, 'public', 'data', 'applications', appIdInput);
@@ -754,6 +774,7 @@
             }
             document.getElementById('idError').style.display = 'none';
             
+            document.getElementById('confirmDate').innerText = new Date(submitDate).toLocaleDateString('en-IN');
             document.getElementById('confirmId').innerText = appIdInput;
             document.getElementById('confirmName').innerText = appName;
             document.getElementById('confirmPanchayat').innerText = panchayat;
@@ -771,6 +792,7 @@
         const appName = document.getElementById('appName').value.trim();
         const panchayat = document.getElementById('panchayat').value;
         const block = document.getElementById('block').value;
+        const submitDate = document.getElementById('submitDate').value;
         const finalSubmitBtn = document.getElementById('finalSubmitBtn');
         
         finalSubmitBtn.disabled = true;
@@ -783,11 +805,18 @@
                 name: appName,
                 panchayat: panchayat,
                 block: block,
+                formDate: submitDate,
                 adminReason: '', 
                 timestamp: Date.now()
             });
             window.showToast("Application submitted successfully!");
             document.getElementById('applicationForm').reset();
+            
+            // Re-apply today's date since reset clears it
+            const today = new Date();
+            const offset = today.getTimezoneOffset() * 60000;
+            document.getElementById('submitDate').value = (new Date(today - offset)).toISOString().split('T')[0];
+
             window.closeConfirmModal();
         } catch (error) {
             console.error("Submission error:", error);
