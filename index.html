@@ -235,6 +235,32 @@
         }
         .delete-btn:hover { background-color: #c82333; }
 
+        /* Filter Controls Styling */
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            height: 46px;
+            background-color: #fff;
+        }
+        .filter-select:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -347,14 +373,16 @@
 <div class="container">
     <!-- FORM SECTION -->
     <div class="card" id="formCard">
-        <h2>Annapurna Yojna Missing list update for SANTURI BLOCK - <br>
+        <h2>Annapurna Yojna Missing list update - <br>
             <span style="color: var(--primary-color); font-size: 0.9em; display: block; margin-top: 8px;">অন্নপূর্ণা যোজনা নাম মিসিং লিস্ট আপডেট</span>
             <span style="font-size: 0.7em; color: var(--danger-color); font-weight: normal; display: block; margin-top: 5px;">
                 ( * this is survey site only )<br>
                 ( * This is not a govt website )
             </span>
         </h2>
-        <p style="color: var(--text-light); margin-bottom: 20px;">For beneficiaries not listed in the July 1, 2026 publication.</p>
+        <p style="color: var(--text-light); margin-bottom: 20px; font-weight: 500;">
+            Covering Santuri, Raghunathpur 1, Raghunathpur Town & Nituria Blocks / Municipalities.
+        </p>
         
         <form id="applicationForm">
             <div class="form-grid">
@@ -375,21 +403,21 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="panchayat">Panchayat <span style="color:red;">*</span></label>
-                    <select id="panchayat" required>
-                        <option value="">-- Select Panchayat --</option>
+                    <label for="block">Block & Municipality <span style="color:red;">*</span></label>
+                    <select id="block" required onchange="handleBlockChange()">
+                        <option value="">-- Select Block & Municipality --</option>
                         <option value="Santuri">Santuri</option>
-                        <option value="RCPur-Kotaldi">RCPur-Kotaldi</option>
-                        <option value="Balitora">Balitora</option>
-                        <option value="Tarabari">Tarabari</option>
-                        <option value="Muradi">Muradi</option>
-                        <option value="Garshika">Garshika</option>
+                        <option value="Raghunathpur 1">Raghunathpur 1</option>
+                        <option value="Raghunathpur Town">Raghunathpur Town</option>
+                        <option value="Nituria">Nituria</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="block">Block</label>
-                    <input type="text" id="block" value="Santuri" readonly>
+                    <label for="panchayat">Panchayat / Ward <span style="color:red;">*</span></label>
+                    <select id="panchayat" required disabled>
+                        <option value="">-- Select Panchayat / Ward --</option>
+                    </select>
                 </div>
             </div>
             
@@ -402,7 +430,25 @@
         <h2>Application Status List</h2>
         <p style="color: var(--text-light); margin-bottom: 15px;">List of all submitted applications and official remarks.</p>
         
-        <input type="text" id="searchInput" class="search-bar" placeholder="Search by App ID, Name, or Panchayat..." onkeyup="handleSearch()">
+        <div class="filter-row">
+            <div class="filter-group" style="flex: 1.5; min-width: 250px;">
+                <input type="text" id="searchInput" class="search-bar" style="margin-bottom: 0; height: 46px;" placeholder="Search by App ID or Beneficiary Name..." onkeyup="handleSearch()">
+            </div>
+            <div class="filter-group">
+                <select id="filterBlock" class="filter-select" onchange="handleFilterBlockChange()">
+                    <option value="">All Blocks & Municipalities</option>
+                    <option value="Santuri">Santuri</option>
+                    <option value="Raghunathpur 1">Raghunathpur 1</option>
+                    <option value="Raghunathpur Town">Raghunathpur Town</option>
+                    <option value="Nituria">Nituria</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <select id="filterPanchayat" class="filter-select" onchange="handleFilterPanchayatChange()" disabled>
+                    <option value="">All Panchayats / Wards</option>
+                </select>
+            </div>
+        </div>
 
         <div class="table-responsive">
             <table id="dataTable">
@@ -411,8 +457,8 @@
                         <th class="sortable" onclick="handleSort('timestamp')">Date <span id="sort_timestamp" class="sort-icon"></span></th>
                         <th class="sortable" onclick="handleSort('id')">App ID <span id="sort_id" class="sort-icon"></span></th>
                         <th class="sortable" onclick="handleSort('name')">Beneficiary Name <span id="sort_name" class="sort-icon"></span></th>
-                        <th class="sortable" onclick="handleSort('panchayat')">Panchayat <span id="sort_panchayat" class="sort-icon"></span></th>
-                        <th class="sortable" onclick="handleSort('block')">Block <span id="sort_block" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="handleSort('panchayat')">Panchayat / Ward <span id="sort_panchayat" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="handleSort('block')">Block & Municipality <span id="sort_block" class="sort-icon"></span></th>
                         <th class="sortable" style="width: 35%;" onclick="handleSort('adminReason')">Admin remark for current status <span id="sort_adminReason" class="sort-icon"></span></th>
                     </tr>
                 </thead>
@@ -434,8 +480,8 @@
             <p><strong>Date:</strong> <span id="confirmDate"></span></p>
             <p><strong>App ID:</strong> <span id="confirmId"></span></p>
             <p><strong>Name:</strong> <span id="confirmName"></span></p>
-            <p><strong>Panchayat:</strong> <span id="confirmPanchayat"></span></p>
-            <p><strong>Block:</strong> <span id="confirmBlock"></span></p>
+            <p><strong>Panchayat / Ward:</strong> <span id="confirmPanchayat"></span></p>
+            <p><strong>Block & Municipality:</strong> <span id="confirmBlock"></span></p>
         </div>
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeConfirmModal()">Edit Details</button>
@@ -468,15 +514,69 @@
     import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     /* =========================================================================
-       1. STATE MANAGEMENT & UI FUNCTIONS (HOISTED FOR SAFETY)
-       These functions are defined first so the UI buttons always work, 
-       even if database connection fails on GitHub.
+       1. STATE MANAGEMENT, GEOGRAPHY & UI FUNCTIONS (HOISTED FOR SAFETY)
+       These functions are defined first so the UI buttons always work.
        ========================================================================= */
+    const locationData = {
+        "Santuri": ["Santuri", "RCPur-Kotaldi", "Balitora", "Tarabari", "Muradi", "Garshika"],
+        "Raghunathpur 1": ["Arrah", "Barugram", "Bero", "Chorpahari", "Khajura", "Nutandih", "Sanka"],
+        "Raghunathpur Town": [
+            "Ward No. 01", "Ward No. 02", "Ward No. 03", "Ward No. 04", "Ward No. 05",
+            "Ward No. 06", "Ward No. 07", "Ward No. 08", "Ward No. 09", "Ward No. 10",
+            "Ward No. 11", "Ward No. 12", "Ward No. 13"
+        ],
+        "Nituria": ["Bhamuria", "Digha", "Guniara", "Janardandi", "Raibandh", "Saltore", "Sarbari"]
+    };
+
     let applications = [];
     let isAdminLoggedIn = false;
     let currentSearch = '';
     let currentSort = { column: 'timestamp', order: 'desc' };
     let dbReady = false;
+
+    // Handle conditional dropdown mapping on form fill up
+    window.handleBlockChange = function() {
+        const blockVal = document.getElementById('block').value;
+        const panchayatSelect = document.getElementById('panchayat');
+        
+        // Reset and disable by default
+        panchayatSelect.innerHTML = '<option value="">-- Select Panchayat / Ward --</option>';
+        panchayatSelect.disabled = true;
+
+        if (blockVal && locationData[blockVal]) {
+            panchayatSelect.disabled = false;
+            locationData[blockVal].forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.textContent = item;
+                panchayatSelect.appendChild(opt);
+            });
+        }
+    };
+
+    // Handle cascading changes in status filters
+    window.handleFilterBlockChange = function() {
+        const filterBlockVal = document.getElementById('filterBlock').value;
+        const filterPanchayatSelect = document.getElementById('filterPanchayat');
+        
+        filterPanchayatSelect.innerHTML = '<option value="">All Panchayats / Wards</option>';
+        filterPanchayatSelect.disabled = true;
+
+        if (filterBlockVal && locationData[filterBlockVal]) {
+            filterPanchayatSelect.disabled = false;
+            locationData[filterBlockVal].forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.textContent = item;
+                filterPanchayatSelect.appendChild(opt);
+            });
+        }
+        window.renderTable();
+    };
+
+    window.handleFilterPanchayatChange = function() {
+        window.renderTable();
+    };
 
     // Auto-fill the date box with today's date
     document.addEventListener('DOMContentLoaded', () => {
@@ -581,10 +681,17 @@
             sortIconEl.innerHTML = currentSort.order === 'asc' ? ' ▲' : ' ▼';
         }
 
+        const filterBlockVal = document.getElementById('filterBlock').value;
+        const filterPanchayatVal = document.getElementById('filterPanchayat').value;
+
         let filteredApps = applications.filter(app => {
-            return (app.id && app.id.toLowerCase().includes(currentSearch)) ||
-                   (app.name && app.name.toLowerCase().includes(currentSearch)) ||
-                   (app.panchayat && app.panchayat.toLowerCase().includes(currentSearch));
+            const matchesSearch = (app.id && app.id.toLowerCase().includes(currentSearch)) ||
+                                  (app.name && app.name.toLowerCase().includes(currentSearch));
+                                  
+            const matchesBlock = !filterBlockVal || (app.block && app.block === filterBlockVal);
+            const matchesPanchayat = !filterPanchayatVal || (app.panchayat && app.panchayat === filterPanchayatVal);
+
+            return matchesSearch && matchesBlock && matchesPanchayat;
         });
 
         filteredApps.sort((a, b) => {
@@ -642,8 +749,8 @@
             "Date": app.formDate ? new Date(app.formDate).toLocaleDateString('en-IN') : (app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A'),
             "Application ID": app.id,
             "Beneficiary Name": app.name,
-            "Panchayat": app.panchayat,
-            "Block": app.block,
+            "Panchayat / Ward": app.panchayat,
+            "Block & Municipality": app.block,
             "Admin Remark": app.adminReason || "Pending Admin Review"
         }));
         const ws = XLSX.utils.json_to_sheet(data);
@@ -656,8 +763,8 @@
         if(applications.length === 0) return window.showToast("No data to export", "error");
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Annapurna Yojna Missing List - Santuri Block", 14, 15);
-        const tableColumn = ["Date", "App ID", "Beneficiary Name", "Panchayat", "Block", "Admin Remark"];
+        doc.text("Annapurna Yojna Missing List", 14, 15);
+        const tableColumn = ["Date", "App ID", "Beneficiary Name", "Panchayat/Ward", "Block & Muni.", "Admin Remark"];
         const tableRows = applications.map(app => [
             app.formDate ? new Date(app.formDate).toLocaleDateString('en-IN') : (app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A'), app.id, app.name, app.panchayat, app.block, app.adminReason || "Pending Admin Review"
         ]);
@@ -672,9 +779,6 @@
        ========================================================================= */
     const APP_COLLECTION_PATH = typeof __app_id !== 'undefined' ? __app_id : 'annapurna-yojna-portal';
     
-    // NOTE FOR GITHUB: If you host this on GitHub, the default DB config is missing.
-    // If you want data to save to a cloud database, create a Firebase project,
-    // and paste the configuration keys into the empty strings below:
     const myFirebaseConfig = {
         apiKey: "AIzaSyCEPlnsWfKqr7akfKXrLE6zJhfBVjdUb3Q",
         authDomain: "annapurna-bhandar-9d9ae.firebaseapp.com",
@@ -705,8 +809,8 @@
             console.error("Firebase init failed:", e);
         }
     } else {
-        console.warn("No Firebase configuration found! Data will not be saved. Add config keys if running outside the preview environment.");
-        setTimeout(() => window.showToast("Warning: No database connected. Cloud features offline.", "error"), 1500);
+        console.warn("No Firebase configuration found! Data will not be saved.");
+        setTimeout(() => window.showToast("Warning: No database connected.", "error"), 1500);
         window.renderTable();
     }
 
@@ -720,7 +824,7 @@
             }
             
             currentUser = userCred.user;
-            if (!currentUser) return; // Wait for authentication before proceeding
+            if (!currentUser) return;
 
             const appsRef = collection(db, 'artifacts', APP_COLLECTION_PATH, 'public', 'data', 'applications');
             onSnapshot(appsRef, (snapshot) => {
@@ -787,7 +891,7 @@
     };
 
     window.executeSubmission = async function() {
-        if (!currentUser) return; // Prevent action if not authenticated
+        if (!currentUser) return;
         const appIdInput = document.getElementById('appId').value.trim();
         const appName = document.getElementById('appName').value.trim();
         const panchayat = document.getElementById('panchayat').value;
@@ -812,10 +916,12 @@
             window.showToast("Application submitted successfully!");
             document.getElementById('applicationForm').reset();
             
-            // Re-apply today's date since reset clears it
+            // Re-apply today's date and disable panchayat dropdown
             const today = new Date();
             const offset = today.getTimezoneOffset() * 60000;
             document.getElementById('submitDate').value = (new Date(today - offset)).toISOString().split('T')[0];
+            document.getElementById('panchayat').innerHTML = '<option value="">-- Select Panchayat / Ward --</option>';
+            document.getElementById('panchayat').disabled = true;
 
             window.closeConfirmModal();
         } catch (error) {
