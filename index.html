@@ -451,7 +451,18 @@
         <button class="toggle-btn" id="toggleListBtn" onclick="toggleDetails()">Show Detailed List</button>
 
         <div id="detailsSection" style="display: none;">
-            <input type="text" id="searchInput" class="search-bar" placeholder="Search by App ID, Name, or Panchayat..." onkeyup="handleSearch()">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input type="text" id="searchInput" class="search-bar" style="margin-bottom: 0; flex: 1; min-width: 200px;" placeholder="Search by App ID or Name..." onkeyup="handleSearch()">
+                <select id="panchayatFilter" class="search-bar" style="margin-bottom: 0; width: auto; flex: 0 0 auto;" onchange="handleFilter()">
+                    <option value="">All Panchayats</option>
+                    <option value="Santuri">Santuri</option>
+                    <option value="RCPur-Kotaldi">RCPur-Kotaldi</option>
+                    <option value="Balitora">Balitora</option>
+                    <option value="Tarabari">Tarabari</option>
+                    <option value="Muradi">Muradi</option>
+                    <option value="Garshika">Garshika</option>
+                </select>
+            </div>
 
             <div class="table-responsive">
                 <table id="dataTable">
@@ -515,6 +526,7 @@
     let applications = [];
     let isAdminLoggedIn = false;
     let currentSearch = '';
+    let currentPanchayatFilter = '';
     let currentSort = { column: 'timestamp', order: 'desc' };
     let dbReady = false;
     let isDetailsVisible = false;
@@ -608,6 +620,11 @@
         window.renderTable();
     };
 
+    window.handleFilter = function() {
+        currentPanchayatFilter = document.getElementById('panchayatFilter').value;
+        window.renderTable();
+    };
+
     window.handleSort = function(column) {
         if (currentSort.column === column) {
             currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
@@ -682,9 +699,13 @@
         }
 
         let filteredApps = applications.filter(app => {
-            return (app.id && app.id.toLowerCase().includes(currentSearch)) ||
-                   (app.name && app.name.toLowerCase().includes(currentSearch)) ||
-                   (app.panchayat && app.panchayat.toLowerCase().includes(currentSearch));
+            const matchesSearch = (app.id && app.id.toLowerCase().includes(currentSearch)) ||
+                                  (app.name && app.name.toLowerCase().includes(currentSearch)) ||
+                                  (app.panchayat && app.panchayat.toLowerCase().includes(currentSearch));
+            
+            const matchesFilter = currentPanchayatFilter === '' || app.panchayat === currentPanchayatFilter;
+            
+            return matchesSearch && matchesFilter;
         });
 
         filteredApps.sort((a, b) => {
