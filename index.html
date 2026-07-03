@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Annapurna Bhandar - Missing list update</title>
+    <title>Annapurna Yojna - Missing list update</title>
 
     <!-- Export Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -333,7 +333,7 @@
 <body>
 
 <div class="header">
-    <h1>Annapurna Bhandar</h1>
+    <h1>Annapurna Yojna</h1>
     <div class="header-actions">
         <button id="exportExcelBtn" class="export-btn" onclick="exportToExcel()">Download Excel</button>
         <button id="exportPdfBtn" class="export-btn pdf" onclick="exportToPDF()">Download PDF</button>
@@ -347,7 +347,7 @@
 <div class="container">
     <!-- FORM SECTION -->
     <div class="card" id="formCard">
-        <h2>Annapurna Bhandar Missing list update for SANTURI BLOCK - <br>
+        <h2>Annapurna Yojna Missing list update for SANTURI BLOCK - <br>
             <span style="color: var(--primary-color); font-size: 0.9em; display: block; margin-top: 8px;">অন্নপূর্ণা যোজনা নাম মিসিং লিস্ট আপডেট</span>
             <span style="font-size: 0.7em; color: var(--danger-color); font-weight: normal; display: block; margin-top: 5px;">
                 ( * this is survey site only )<br>
@@ -630,14 +630,14 @@
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Applications");
-        XLSX.writeFile(wb, "Annapurna_Bhandar_List.xlsx");
+        XLSX.writeFile(wb, "Annapurna_Yojna_List.xlsx");
     };
 
     window.exportToPDF = function() {
         if(applications.length === 0) return window.showToast("No data to export", "error");
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Annapurna Bhandar Missing List - Santuri Block", 14, 15);
+        doc.text("Annapurna Yojna Missing List - Santuri Block", 14, 15);
         const tableColumn = ["Date", "App ID", "Beneficiary Name", "Panchayat", "Block", "Admin Remark"];
         const tableRows = applications.map(app => [
             app.timestamp ? new Date(app.timestamp).toLocaleDateString('en-IN') : 'N/A', app.id, app.name, app.panchayat, app.block, app.adminReason || "Pending Admin Review"
@@ -645,13 +645,13 @@
         doc.autoTable({
             head: [tableColumn], body: tableRows, startY: 20, styles: { fontSize: 9 }, headStyles: { fillColor: [0, 86, 179] }
         });
-        doc.save("Annapurna_Bhandar_List.pdf");
+        doc.save("Annapurna_Yojna_List.pdf");
     };
 
     /* =========================================================================
        2. DATABASE INITIALIZATION (FIREBASE SAFE SETUP)
        ========================================================================= */
-    const APP_COLLECTION_PATH = typeof __app_id !== 'undefined' ? __app_id : 'annapurna-bhandar-portal';
+    const APP_COLLECTION_PATH = typeof __app_id !== 'undefined' ? __app_id : 'annapurna-yojna-portal';
     
     // NOTE FOR GITHUB: If you host this on GitHub, the default DB config is missing.
     // If you want data to save to a cloud database, create a Firebase project,
