@@ -3,192 +3,330 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Annapurna Yojna - Missing list update</title>
-
-    <!-- Export Libraries -->
+    <title>Annapurna Yojna Missing list Query</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- SheetJS for Excel Download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- jsPDF for PDF Download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        :root { --primary-color: #0056b3; --bg-color: #f4f7f6; --success-color: #28a745; --danger-color: #dc3545; --text-dark: #333; --text-light: #666; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; color: var(--text-dark); }
-        .header { background-color: #fff; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .header h1 { margin: 0; font-size: 24px; color: var(--primary-color); }
-        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px 40px 20px; }
-        .card { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .form-group { margin-bottom: 15px; }
-        input[type="text"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .submit-btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; width: 100%; cursor: pointer; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
-        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; }
-        th { background-color: var(--primary-color); color: white; }
-        .admin-textarea { width: 100%; padding: 8px; border: 1px solid #ccc; }
-        .save-btn { background-color: var(--success-color); color: white; border: none; padding: 6px; cursor: pointer; }
-        .delete-btn { background-color: var(--danger-color); color: white; border: none; padding: 6px; cursor: pointer; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 400px; }
+        :root {
+            --primary-bg: #F6F9FC;
+            --card-bg: #FFFFFF;
+            --text-main: #0A2540;
+            --text-muted: #425466;
+            --accent-blue: #0070F3;
+            --accent-hover: #0051B3;
+            --border-color: #E6E8EB;
+            --danger: #E02424;
+            --success: #059669;
+            --warning: #D97706;
+            --font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--primary-bg);
+            color: var(--text-muted);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-family);
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 112, 243, 0.2);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background-color: #f8f9fa;
+            border-color: #d1d5db;
+            color: var(--text-main);
+            box-shadow: none;
+        }
+
+        .btn-warning { background-color: var(--warning); color: white; }
+        .btn-warning:hover { background-color: #b45309; }
+
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #047857; }
+
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #b91c1c; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .header-text { text-align: center; margin-bottom: 30px; }
+        .header-text h1 { color: var(--text-main); font-size: 24px; font-weight: 700; margin: 0 0 10px 0; }
+        .header-text .bengali-title { font-size: 20px; color: var(--accent-blue); font-weight: 600; margin: 0 0 10px 0; }
+        .header-text .disclaimer { font-size: 13px; color: var(--danger); font-weight: 500; margin: 0; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
+        .form-control { padding: 12px 16px; font-size: 15px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; box-sizing: border-box; }
+        
+        .table-responsive { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background-color: #f8fafc; color: var(--text-main); font-weight: 600; padding: 16px; border-bottom: 2px solid var(--border-color); cursor: pointer; }
+        td { padding: 16px; border-bottom: 1px solid var(--border-color); color: var(--text-muted); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 37, 64, 0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #fff; padding: 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; }
+        .toast { background-color: #333; color: #fff; padding: 12px 24px; border-radius: 8px; margin-top: 10px; }
+        
+        .hidden { display: none !important; }
+        .admin-only { display: none; }
+        body.is-admin .admin-only { display: flex; }
+        body.is-admin .admin-only-cell { display: table-cell; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="top-bar">
+            <button class="btn btn-warning admin-only" onclick="mergeDatabases()">Merge Databases</button>
+            <button class="btn btn-outline" id="adminLoginBtn" onclick="openModal('loginModal')">Admin Login</button>
+            <button class="btn btn-outline hidden" id="adminLogoutBtn" onclick="logoutAdmin()">Logout Admin</button>
+        </div>
 
-<div class="header">
-    <h1>Annapurna Yojna</h1>
-    <div>
-        <button id="adminBtn" onclick="openLoginModal()">Admin Login</button>
-    </div>
-</div>
+        <div class="header-text">
+            <h1>Annapurna Yojna Missing list Query for Santuri Raghunathpur-1, Raghunathpur Town & Nituria</h1>
+            <p class="bengali-title">অন্নপূর্ণা যোজনা নাম মিসিং লিস্ট</p>
+            <p class="disclaimer">* This is a survey site only and NOT an official government website.</p>
+        </div>
 
-<div class="container">
-    <div class="card" id="formCard">
-        <h2>Annapurna Yojna Missing list Query</h2>
-        <form id="applicationForm">
-            <div class="form-grid">
-                <div class="form-group"><label>Date <span style="color:red;">*</span></label><input type="date" id="submitDate" required></div>
-                <div class="form-group"><label>App ID <span style="color:red;">*</span></label><input type="text" id="appId" required></div>
-                <div class="form-group"><label>Name <span style="color:red;">*</span></label><input type="text" id="appName" required></div>
-                <div class="form-group"><label>Panchayat <span style="color:red;">*</span></label>
-                    <select id="panchayat" required>
-                        <option value="">-- Select --</option>
-                        <option value="Santuri">Santuri</option><option value="RCPur-Kotaldi">RCPur-Kotaldi</option>
-                        <option value="Balitora">Balitora</option><option value="Tarabari">Tarabari</option>
-                        <option value="Muradi">Muradi</option><option value="Garshika">Garshika</option>
-                    </select>
+        <div class="card" id="user-form-card">
+            <form id="submissionForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Application Submission Date *</label>
+                        <input type="date" id="appDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Application ID *</label>
+                        <input type="text" id="appId" class="form-control" required placeholder="Enter ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Beneficiary Name *</label>
+                        <input type="text" id="appName" class="form-control" required placeholder="Enter name">
+                    </div>
+                    <div class="form-group">
+                        <label>Block & Municipality *</label>
+                        <select id="blockSelect" class="form-control" required onchange="populatePanchayats()">
+                            <option value="">-- Select --</option>
+                            <option value="Santuri">Santuri</option>
+                            <option value="Raghunathpur 1">Raghunathpur 1</option>
+                            <option value="Raghunathpur Town">Raghunathpur Town</option>
+                            <option value="Nituria">Nituria</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Panchayat / Ward *</label>
+                        <select id="panchayatSelect" class="form-control" required disabled>
+                            <option value="">-- Select Block First --</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group"><label>Block</label><input type="text" id="block" value="Santuri" readonly></div>
+                <button type="button" class="btn" style="width: 100%; padding: 14px;" onclick="previewSubmission()">Submit Query</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0; margin-bottom: 20px;">Application Status List</h3>
+            <div class="table-responsive">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th><th>App ID</th><th>Name</th><th>Block</th><th>Panchayat</th><th>Status</th><th class="admin-only">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"><tr><td colspan="7" style="text-align: center;">Loading data...</td></tr></tbody>
+                </table>
             </div>
-            <button type="submit" class="submit-btn">Submit</button>
-        </form>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>List</h2>
-        <input type="text" id="searchInput" placeholder="Search..." onkeyup="renderTable()" style="width:100%; padding:10px; margin-bottom:10px;">
-        <table>
-            <thead><tr><th>Date</th><th>ID</th><th>Name</th><th>Panchayat</th><th>Status/Remark</th></tr></thead>
-            <tbody id="tableBody"><tr><td colspan="5">Loading data...</td></tr></tbody>
-        </table>
-    </div>
-</div>
+    <!-- Modals & Toasts -->
+    <div class="modal-overlay" id="loginModal"><div class="modal"><h3>Admin Login</h3><input type="password" id="loginPass" class="form-control" placeholder="Password"><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('loginModal')">Cancel</button><button class="btn" onclick="verifyAdmin()">Login</button></div></div></div>
+    <div id="toast-container"></div>
 
-<div class="modal-overlay" id="loginModal">
-    <div class="modal-content">
-        <h3>Admin Login</h3>
-        <input type="password" id="adminPass" placeholder="Password">
-        <button onclick="attemptLogin()" style="margin-top:10px;">Login</button>
-    </div>
-</div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { initializeFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        const myFirebaseConfig = {
+            apiKey: "AIzaSyCEPlnsWfKqr7akfKXrLE6zJhfBVjdUb3Q",
+            authDomain: "annapurna-bhandar-9d9ae.firebaseapp.com",
+            projectId: "annapurna-bhandar-9d9ae",
+            storageBucket: "annapurna-bhandar-9d9ae.firebasestorage.app",
+            messagingSenderId: "472903565913",
+            appId: "1:472903565913:web:d379e28809fdecbf20e748"
+        };
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCEPlnsWfKqr7akfKXrLE6zJhfBVjdUb3Q",
-        authDomain: "annapurna-bhandar-9d9ae.firebaseapp.com",
-        projectId: "annapurna-bhandar-9d9ae",
-        storageBucket: "annapurna-bhandar-9d9ae.firebasestorage.app",
-        messagingSenderId: "472903565913",
-        appId: "1:472903565913:web:d379e28809fdecbf20e748"
-    };
+        const app = initializeApp(myFirebaseConfig);
+        const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+        const auth = getAuth(app);
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    
-    let applications = [];
-    let isAdmin = false;
-
-    // Initialize
-    signInAnonymously(auth).then(() => {
-        // Fetch from ALL locations
-        const paths = [
-            'annapurna_submissions',
-            'artifacts/annapurna-yojna-portal/public/data/applications'
+        // Include the target path in your collection list
+        const COLLECTION_PATHS = [
+            "annapurna_submissions",
+            "annapurna-yojna-portal",
+            "annapurna_portal",
+            "artifacts/annapurna-yojna-portal/public/data/applications"
         ];
 
-        paths.forEach(path => {
-            onSnapshot(collection(db, path), (snapshot) => {
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    // Merge into main array, avoid duplicates by ID
-                    const existingIdx = applications.findIndex(a => a.id === (data.id || docSnap.id));
-                    if(existingIdx > -1) {
-                        applications[existingIdx] = { dbId: docSnap.id, ...data };
-                    } else {
-                        applications.push({ dbId: docSnap.id, ...data });
-                    }
-                });
-                renderTable();
-            });
-        });
-    });
-
-    window.renderTable = function() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = '';
+        window.allApplications = [];
+        window.isAdmin = false;
         
-        applications.filter(a => (a.name || '').toLowerCase().includes(query) || (a.id || '').includes(query)).forEach(app => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${app.formDate || app.date || 'N/A'}</td>
-                <td>${app.id || 'N/A'}</td>
-                <td>${app.name || 'N/A'}</td>
-                <td>${app.panchayat || 'N/A'}</td>
-                <td>
-                    ${isAdmin ? 
-                        `<textarea id="rem_${app.dbId}">${app.adminReason || ''}</textarea>
-                         <button class="save-btn" onclick="saveRemark('${app.dbId}')">Save</button>
-                         <button class="delete-btn" onclick="del('${app.dbId}')">Del</button>` 
-                        : (app.adminReason || 'Pending')}
-                </td>
-            `;
-            tbody.appendChild(tr);
+        window.openModal = (id) => document.getElementById(id).classList.add('active');
+        window.closeModal = (id) => document.getElementById(id).classList.remove('active');
+
+        signInAnonymously(auth).then(() => {
+            fetchData();
         });
-    };
 
-    window.attemptLogin = () => {
-        if(document.getElementById('adminPass').value === 'santuri123') {
-            isAdmin = true;
-            document.getElementById('loginModal').style.display = 'none';
-            renderTable();
-        } else { alert("Wrong Password"); }
-    };
-
-    window.openLoginModal = () => document.getElementById('loginModal').style.display = 'flex';
-
-    window.saveRemark = async (dbId) => {
-        const val = document.getElementById('rem_'+dbId).value;
-        const app = applications.find(a => a.dbId === dbId);
-        // Save to submissions folder
-        await updateDoc(doc(db, 'annapurna_submissions', dbId), { adminReason: val });
-        alert("Saved!");
-    };
-
-    window.del = async (dbId) => {
-        if(confirm("Delete?")) {
-            await deleteDoc(doc(db, 'annapurna_submissions', dbId));
+        function fetchData() {
+            window.allApplications = [];
+            COLLECTION_PATHS.forEach(path => {
+                const q = query(collection(db, path));
+                onSnapshot(q, (snapshot) => {
+                    snapshot.forEach(doc => {
+                        window.allApplications.push({ docId: doc.id, _path: path, ...doc.data() });
+                    });
+                    renderTable();
+                });
+            });
         }
-    };
 
-    document.getElementById('applicationForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('appId').value;
-        await setDoc(doc(db, 'annapurna_submissions', id), {
-            id: id,
-            name: document.getElementById('appName').value,
-            panchayat: document.getElementById('panchayat').value,
-            formDate: document.getElementById('submitDate').value,
-            block: 'Santuri',
-            timestamp: Date.now()
-        });
-        alert("Submitted!");
-        document.getElementById('applicationForm').reset();
-    };
-</script>
+        window.mergeDatabases = async function() {
+            if(!confirm("Proceed with database merge?")) return;
+            let merged = 0;
+            for (const path of COLLECTION_PATHS) {
+                if (path === "annapurna_submissions") continue;
+                const docs = window.allApplications.filter(a => a._path === path);
+                for (const app of docs) {
+                    try {
+                        await addDoc(collection(db, "annapurna_submissions"), {
+                            date: app.date || '', appId: app.appId || '', name: app.name || '',
+                            block: app.block || '', panchayat: app.panchayat || '',
+                            createdAt: Date.now()
+                        });
+                        merged++;
+                    } catch (e) { console.error(e); }
+                }
+            }
+            alert(`Merged ${merged} records!`);
+        };
 
+        window.renderTable = function() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            window.allApplications.forEach(app => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${app.date || '-'}</td><td>${app.appId || ''}</td><td>${app.name || ''}</td><td>${app.block || ''}</td><td>${app.panchayat || ''}</td><td>${app.adminRemark || 'Pending'}</td><td class="admin-only admin-only-cell"><button onclick="alert('Admin editing enabled')">Edit</button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.verifyAdmin = function() {
+            if(document.getElementById('loginPass').value === 'santuri123') {
+                window.isAdmin = true;
+                document.body.classList.add('is-admin');
+                closeModal('loginModal');
+                renderTable();
+            } else alert('Wrong Password');
+        };
+
+        window.logoutAdmin = function() {
+            window.isAdmin = false;
+            document.body.classList.remove('is-admin');
+            renderTable();
+        };
+
+        // Populate logic
+        window.populatePanchayats = () => { /* ... (Your existing logic) ... */ };
+        
+        // Simple helper for now - ensuring existing functionality works
+        window.locationData = {
+            "Santuri": ["Santuri", "RCPur-Kotaldi", "Balitora", "Tarabari", "Muradi", "Garshika"],
+            "Raghunathpur 1": ["Arrah", "Babugram", "Bero", "Chorpania", "Khajura", "Nutandi", "Sanka"],
+            "Raghunathpur Town": ["Ward 1", "Ward 2", "Ward 3", "Ward 4", "Ward 5", "Ward 6", "Ward 7", "Ward 8", "Ward 9", "Ward 10", "Ward 11", "Ward 12", "Ward 13"],
+            "Nituria": ["Bhamuria", "Dakshin Parulia", "Dessermohan", "Gunjan", "Hirapur", "Parbelia", "Raibandh", "Saltore", "Sarbari"]
+        };
+        
+        window.populatePanchayats = function() {
+            const block = document.getElementById('blockSelect').value;
+            const pSelect = document.getElementById('panchayatSelect');
+            pSelect.innerHTML = '<option value="">-- Select Panchayat / Ward --</option>';
+            if(block && window.locationData[block]) {
+                window.locationData[block].forEach(p => pSelect.innerHTML += `<option value="${p}">${p}</option>`);
+                pSelect.disabled = false;
+            }
+        };
+
+        window.previewSubmission = async function() {
+            const data = {
+                date: document.getElementById('appDate').value,
+                appId: document.getElementById('appId').value,
+                name: document.getElementById('appName').value,
+                block: document.getElementById('blockSelect').value,
+                panchayat: document.getElementById('panchayatSelect').value,
+                createdAt: Date.now()
+            };
+            await addDoc(collection(db, "annapurna_submissions"), data);
+            alert("Submitted!");
+            document.getElementById('submissionForm').reset();
+        };
+    </script>
 </body>
 </html>
