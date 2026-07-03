@@ -661,20 +661,28 @@
             }
         }
 
-        // Authenticate Anonymously & Load Data
+        // Authenticate Anonymously & Load Data (WAIT FOR AUTH BEFORE PROCEEDING)
         signInAnonymously(auth).then(() => {
+            console.log("Firebase Anonymous Auth Successful!");
             runAutoMigration(); // Check for old local storage data
             fetchDataRealtime();
         }).catch((error) => {
             console.error("Auth Error:", error);
             document.getElementById('tableBody').innerHTML = `
                 <tr><td colspan="7" style="color:var(--danger); text-align:center; padding:20px;">
-                    <b>Firebase Connection Error!</b><br>
-                    Please go to your Firebase Console -> Authentication -> Settings -> Enable "Anonymous" Sign-in.
+                    <b>Firebase Authentication Error!</b><br>
+                    Please go to your Firebase Console -> Authentication -> Settings -> Enable "Anonymous" Sign-in.<br>
+                    Error details: ${error.message}
                 </td></tr>`;
         });
 
         function fetchDataRealtime() {
+            // Ensure auth is initialized before querying
+            if (!auth.currentUser) {
+                 console.error("Cannot fetch data: User is not authenticated.");
+                 return;
+            }
+
             const q = query(collection(db, APP_COLLECTION_PATH), orderBy('createdAt', 'desc'));
             unsubscribe = onSnapshot(q, (snapshot) => {
                 window.allApplications = [];
@@ -684,7 +692,16 @@
                 renderTable();
             }, (error) => {
                 console.error("Fetch error: ", error);
-                showToast("Error loading database.", "error");
+                if(error.code === 'permission-denied') {
+                     document.getElementById('tableBody').innerHTML = `
+                        <tr><td colspan="7" style="color:var(--danger); text-align:center; padding:20px;">
+                            <b>Firebase Security Rules Error!</b><br>
+                            Your database rules are blocking access. Go to Firebase Console -> Firestore Database -> Rules and set them to:<br><br>
+                            <code>allow read, write: if true;</code>
+                        </td></tr>`;
+                } else {
+                     showToast("Error loading database.", "error");
+                }
             });
         }
 
@@ -738,6 +755,12 @@
         };
 
         window.executeSubmission = async function() {
+            // Verify Authentication State before attempting write
+            if (!auth.currentUser) {
+                showToast("Connection error: Not authenticated. Please refresh the page.", "error");
+                return;
+            }
+
             const submitBtn = document.querySelector('#confirmSubmitModal .btn-success');
             submitBtn.innerText = "Saving...";
             submitBtn.disabled = true;
