@@ -328,6 +328,49 @@
         }
         .toast.success { background-color: var(--success-color); }
         .toast.error { background-color: var(--danger-color); }
+
+        /* Dashboard Styles */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .stat-card.total {
+            background: #e2eafc;
+            border-color: #b6ccfe;
+            grid-column: 1 / -1;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-top: 5px;
+            font-weight: 600;
+        }
+        .toggle-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .toggle-btn:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
@@ -392,28 +435,32 @@
         </form>
     </div>
 
+    <!-- DASHBOARD SECTION -->
+    <div class="card" id="dashboardCard">
+        <h2>Dashboard Summary (Missing List)</h2>
+        <div class="dashboard-grid" id="dashboardGrid">
+            <!-- Populated via JS -->
+        </div>
+    </div>
+
     <!-- PUBLIC LIST SECTION -->
     <div class="card">
         <h2>Application Status List</h2>
         <p style="color: var(--text-light); margin-bottom: 15px;">List of all submitted applications and official remarks.</p>
         
-        <input type="text" id="searchInput" class="search-bar" placeholder="Search by App ID, Name, or Panchayat..." onkeyup="handleSearch()">
+        <button class="toggle-btn" id="toggleListBtn" onclick="toggleDetails()">Show Detailed List</button>
 
-        <div class="table-responsive">
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th class="sortable" onclick="handleSort('id')">App ID <span id="sort_id" class="sort-icon"></span></th>
-                        <th class="sortable" onclick="handleSort('name')">Beneficiary Name <span id="sort_name" class="sort-icon"></span></th>
-                        <th class="sortable" onclick="handleSort('panchayat')">Panchayat <span id="sort_panchayat" class="sort-icon"></span></th>
-                        <th class="sortable" onclick="handleSort('block')">Block <span id="sort_block" class="sort-icon"></span></th>
-                        <th class="sortable" style="width: 35%;" onclick="handleSort('adminReason')">Admin remark for current status <span id="sort_adminReason" class="sort-icon"></span></th>
-                    </tr>
-                </thead>
+        <div id="detailsSection" style="display: none;">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search by App ID, Name, or Panchayat..." onkeyup="handleSearch()">
+
+            <div class="table-responsive">
+                <table id="dataTable">
+                    <thead>
                 <tbody id="tableBody">
                     <!-- Data populated via JS -->
                 </tbody>
             </table>
+        </div>
         </div>
     </div>
 </div>
@@ -470,6 +517,20 @@
     let currentSearch = '';
     let currentSort = { column: 'timestamp', order: 'desc' };
     let dbReady = false;
+    let isDetailsVisible = false;
+
+    window.toggleDetails = function() {
+        isDetailsVisible = !isDetailsVisible;
+        const section = document.getElementById('detailsSection');
+        const btn = document.getElementById('toggleListBtn');
+        if (isDetailsVisible) {
+            section.style.display = 'block';
+            btn.innerText = 'Hide Detailed List';
+        } else {
+            section.style.display = 'none';
+            btn.innerText = 'Show Detailed List';
+        }
+    };
 
     window.showToast = function(message, type = 'success') {
         const container = document.getElementById('toastContainer');
@@ -524,6 +585,12 @@
             document.getElementById('exportExcelBtn').style.display = 'inline-block';
             document.getElementById('exportPdfBtn').style.display = 'inline-block';
             document.getElementById('formCard').style.display = 'none';
+            
+            // Auto-show details for admin
+            isDetailsVisible = true;
+            document.getElementById('detailsSection').style.display = 'block';
+            document.getElementById('toggleListBtn').innerText = 'Hide Detailed List';
+
             window.showToast("Admin logged in successfully!");
             window.renderTable(); 
         } else {
@@ -551,7 +618,60 @@
         window.renderTable();
     };
 
+    window.updateDashboard = function() {
+        const counts = {
+            Total: applications.length,
+            Santuri: 0,
+            'RCPur-Kotaldi': 0,
+            Balitora: 0,
+            Tarabari: 0,
+            Muradi: 0,
+            Garshika: 0
+        };
+
+        applications.forEach(app => {
+            if (counts[app.panchayat] !== undefined) {
+                counts[app.panchayat]++;
+            }
+        });
+
+        const grid = document.getElementById('dashboardGrid');
+        grid.innerHTML = `
+            <div class="stat-card total">
+                <div class="stat-value">${counts.Total}</div>
+                <div class="stat-label">Grand Total Missing</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts.Santuri}</div>
+                <div class="stat-label">Santuri</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts['RCPur-Kotaldi']}</div>
+                <div class="stat-label">RCPur-Kotaldi</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts.Balitora}</div>
+                <div class="stat-label">Balitora</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts.Tarabari}</div>
+                <div class="stat-label">Tarabari</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts.Muradi}</div>
+                <div class="stat-label">Muradi</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${counts.Garshika}</div>
+                <div class="stat-label">Garshika</div>
+            </div>
+        `;
+    };
+
     window.renderTable = function() {
+        // Update Dashboard statistics first
+        window.updateDashboard();
+
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
 
