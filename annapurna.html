@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annapurna Bhandar - Missing list update</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --bg-color: #f4f7f6;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --text-dark: #333;
+            --text-light: #666;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-dark);
+        }
+        
+        /* Header & Navigation */
+        .header {
+            background-color: #fff;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+        .admin-login-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .admin-login-btn:hover { background-color: #5a6268; }
+        .logout-btn { background-color: var(--danger-color); }
+        .logout-btn:hover { background-color: #c82333; }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px 40px 20px;
+        }
+
+        /* Form Card */
+        .card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            color: var(--text-dark);
+        }
+
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+        .form-group { margin-bottom: 15px; }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #444;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        input[readonly] {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+            color: #666;
+        }
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .submit-btn:hover { background-color: #004494; }
+        .error-msg {
+            color: var(--danger-color);
+            font-size: 14px;
+            display: none;
+            margin-top: 5px;
+        }
+
+        /* Table Styles */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: #fff;
+        }
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            white-space: nowrap;
+        }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        
+        .admin-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 50px;
+            box-sizing: border-box;
+        }
+        .save-btn {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+            display: block;
+            width: 100%;
+        }
+        .save-btn:hover { background-color: #218838; }
+        .pending-text {
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 { margin-top: 0; }
+        .close-modal {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+            color: #888;
+        }
+        .close-modal:hover { color: #333; }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+        .toast {
+            background-color: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            margin-top: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            display: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .toast.success { background-color: var(--success-color); }
+        .toast.error { background-color: var(--danger-color); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Annapurna Bhandar</h1>
+    <button id="authBtn" class="admin-login-btn" onclick="openLoginModal()">Admin Login</button>
+</div>
+
+<!-- Toast Notifications -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="container">
+    <!-- FORM SECTION -->
+    <div class="card">
+        <h2>Annapurna Bhandar Missing list update for SANTURI BLOCK - <br>
+            <span style="font-size: 0.7em; color: var(--danger-color); font-weight: normal;">
+                ( * this is survey site only )<br>
+                ( * This is not a govt website )
+            </span>
+        </h2>
+        <p style="color: var(--text-light); margin-bottom: 20px;">For beneficiaries not listed in the July 1, 2026 publication.</p>
+        
+        <form id="applicationForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="appId">Application ID <span style="color:red;">*</span></label>
+                    <input type="text" id="appId" required placeholder="Enter unique Application ID">
+                    <div id="idError" class="error-msg">This Application ID already exists!</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="appName">Beneficiary Name <span style="color:red;">*</span></label>
+                    <input type="text" id="appName" required placeholder="Enter full name">
+                </div>
+
+                <div class="form-group">
+                    <label for="panchayat">Panchayat <span style="color:red;">*</span></label>
+                    <select id="panchayat" required>
+                        <option value="">-- Select Panchayat --</option>
+                        <option value="Santuri">Santuri</option>
+                        <option value="RCPur-Kotaldi">RCPur-Kotaldi</option>
+                        <option value="Balitora">Balitora</option>
+                        <option value="Tarabari">Tarabari</option>
+                        <option value="Muradi">Muradi</option>
+                        <option value="Garshika">Garshika</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="block">Block</label>
+                    <input type="text" id="block" value="Santuri" readonly>
+                </div>
+            </div>
+
+            <!-- Note: Reason field removed from user entry. Now handled by Admin. -->
+            
+            <button type="submit" class="submit-btn">Submit Application</button>
+        </form>
+    </div>
+
+    <!-- PUBLIC LIST SECTION -->
+    <div class="card">
+        <h2>Application Status List</h2>
+        <p style="color: var(--text-light); margin-bottom: 15px;">List of all submitted applications and official remarks.</p>
+        
+        <div class="table-responsive">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>App ID</th>
+                        <th>Beneficiary Name</th>
+                        <th>Panchayat</th>
+                        <th>Block</th>
+                        <th style="width: 35%;">Admin remark for current status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Login Modal -->
+<div class="modal-overlay" id="loginModal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeLoginModal()">&times;</span>
+        <h3>Admin Login</h3>
+        <div class="form-group" style="margin-top: 15px;">
+            <label for="adminId">User ID</label>
+            <input type="text" id="adminId" placeholder="Enter Admin ID">
+        </div>
+        <div class="form-group">
+            <label for="adminPass">Password</label>
+            <input type="password" id="adminPass" placeholder="Enter Password">
+            <div id="loginError" class="error-msg">Incorrect ID or Password!</div>
+        </div>
+        <button class="submit-btn" onclick="attemptLogin()">Login</button>
+    </div>
+</div>
+
+<script>
+    // State management
+    let applications = JSON.parse(localStorage.getItem('annapurnaAppsV2')) || [];
+    let isAdminLoggedIn = false;
+
+    // Toast Notification System (Replaces alert())
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = message;
+        
+        container.appendChild(toast);
+        
+        // Trigger reflow to apply transition
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Modal Handling
+    function openLoginModal() {
+        if (isAdminLoggedIn) {
+            // If already logged in, this acts as a logout button
+            isAdminLoggedIn = false;
+            document.getElementById('authBtn').innerText = "Admin Login";
+            document.getElementById('authBtn').classList.remove('logout-btn');
+            showToast("Admin logged out successfully.");
+            renderTable();
+        } else {
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('adminId').value = '';
+            document.getElementById('adminPass').value = '';
+            document.getElementById('loginError').style.display = 'none';
+        }
+    }
+
+    function closeLoginModal() {
+        document.getElementById('loginModal').style.display = 'none';
+    }
+
+    // Login Logic (Password is santuri123 as requested)
+    function attemptLogin() {
+        const pass = document.getElementById('adminPass').value;
+        const userId = document.getElementById('adminId').value.trim();
+        
+        if (userId === "") {
+            document.getElementById('loginError').innerText = "User ID cannot be empty.";
+            document.getElementById('loginError').style.display = 'block';
+            return;
+        }
+
+        if (pass === 'santuri123') {
+            isAdminLoggedIn = true;
+            closeLoginModal();
+            document.getElementById('authBtn').innerText = "Logout Admin";
+            document.getElementById('authBtn').classList.add('logout-btn');
+            showToast("Admin logged in successfully!");
+            renderTable(); // Re-render table to show admin inputs
+        } else {
+            document.getElementById('loginError').innerText = "Incorrect Password!";
+            document.getElementById('loginError').style.display = 'block';
+        }
+    }
+
+    // Form Submission Logic
+    document.getElementById('applicationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const appId = document.getElementById('appId').value.trim();
+        const appName = document.getElementById('appName').value.trim();
+        const panchayat = document.getElementById('panchayat').value;
+        const block = document.getElementById('block').value;
+
+        // Check for duplicate Application ID
+        const isDuplicate = applications.some(app => app.id === appId);
+        
+        if (isDuplicate) {
+            document.getElementById('idError').style.display = 'block';
+            showToast("Application ID already exists!", "error");
+            return;
+        } else {
+            document.getElementById('idError').style.display = 'none';
+        }
+
+        // Save new application
+        const newApp = {
+            id: appId,
+            name: appName,
+            panchayat: panchayat,
+            block: block,
+            adminReason: '' // Reason is strictly admin controlled now
+        };
+
+        applications.push(newApp);
+        localStorage.setItem('annapurnaAppsV2', JSON.stringify(applications));
+
+        showToast("Application submitted successfully!");
+        this.reset();
+        
+        // Update table immediately
+        renderTable();
+    });
+
+    // Render data in Table
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        if (applications.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No applications submitted yet.</td></tr>';
+            return;
+        }
+
+        applications.forEach((app, index) => {
+            const tr = document.createElement('tr');
+            
+            // Determine what to show in the Reason column based on Auth state
+            let reasonHTML = '';
+            if (isAdminLoggedIn) {
+                // Admin View: Editable textarea
+                reasonHTML = `
+                    <textarea id="reason_${index}" class="admin-textarea" placeholder="Enter admin remark...">${app.adminReason}</textarea>
+                    <button class="save-btn" onclick="saveAdminReason(${index})">Save Remark</button>
+                `;
+            } else {
+                // Public View: Plain text or "Pending"
+                if (app.adminReason && app.adminReason.trim() !== '') {
+                    reasonHTML = `<span style="font-weight: 500;">${app.adminReason}</span>`;
+                } else {
+                    reasonHTML = `<span class="pending-text">Pending Admin Review</span>`;
+                }
+            }
+
+            tr.innerHTML = `
+                <td><strong>${app.id}</strong></td>
+                <td>${app.name}</td>
+                <td>${app.panchayat}</td>
+                <td>${app.block}</td>
+                <td>${reasonHTML}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Save Admin Reason
+    window.saveAdminReason = function(index) {
+        const reasonValue = document.getElementById(`reason_${index}`).value;
+        applications[index].adminReason = reasonValue;
+        localStorage.setItem('annapurnaAppsV2', JSON.stringify(applications));
+        showToast(`Remark saved for Application ID: ${applications[index].id}`);
+    };
+
+    // Initial render call
+    renderTable();
+</script>
+
+</body>
+</html>
