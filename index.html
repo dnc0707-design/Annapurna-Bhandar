@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Annapurna Bhandar - Missing list update</title>
+
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         :root {
             --primary-color: #0056b3;
@@ -36,6 +42,25 @@
             font-size: 24px;
             color: var(--primary-color);
         }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .export-btn {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            display: none; /* Hidden by default, visible to admin */
+        }
+        .export-btn:hover { background-color: #218838; }
+        .export-btn.pdf { background-color: #dc3545; }
+        .export-btn.pdf:hover { background-color: #c82333; }
+        
         .admin-login-btn {
             background-color: #6c757d;
             color: white;
@@ -170,6 +195,46 @@
             font-style: italic;
         }
 
+        /* Search, Sort & Actions Styles */
+        .search-bar {
+            width: 100%;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .sortable:hover {
+            background-color: #004494;
+        }
+        .sort-icon {
+            font-size: 0.8em;
+            margin-left: 5px;
+            opacity: 0.7;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .delete-btn {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .delete-btn:hover { background-color: #c82333; }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -229,7 +294,11 @@
 
 <div class="header">
     <h1>Annapurna Bhandar</h1>
-    <button id="authBtn" class="admin-login-btn" onclick="openLoginModal()">Admin Login</button>
+    <div class="header-actions">
+        <button id="exportExcelBtn" class="export-btn" onclick="exportToExcel()">Download Excel</button>
+        <button id="exportPdfBtn" class="export-btn pdf" onclick="exportToPDF()">Download PDF</button>
+        <button id="authBtn" class="admin-login-btn" onclick="openLoginModal()">Admin Login</button>
+    </div>
 </div>
 
 <!-- Toast Notifications -->
@@ -289,15 +358,17 @@
         <h2>Application Status List</h2>
         <p style="color: var(--text-light); margin-bottom: 15px;">List of all submitted applications and official remarks.</p>
         
+        <input type="text" id="searchInput" class="search-bar" placeholder="Search by App ID, Name, or Panchayat..." onkeyup="handleSearch()">
+
         <div class="table-responsive">
             <table id="dataTable">
                 <thead>
                     <tr>
-                        <th>App ID</th>
-                        <th>Beneficiary Name</th>
-                        <th>Panchayat</th>
-                        <th>Block</th>
-                        <th style="width: 35%;">Admin remark for current status</th>
+                        <th class="sortable" onclick="handleSort('id')">App ID <span id="sort_id" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="handleSort('name')">Beneficiary Name <span id="sort_name" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="handleSort('panchayat')">Panchayat <span id="sort_panchayat" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="handleSort('block')">Block <span id="sort_block" class="sort-icon"></span></th>
+                        <th class="sortable" style="width: 35%;" onclick="handleSort('adminReason')">Admin remark for current status <span id="sort_adminReason" class="sort-icon"></span></th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -326,53 +397,93 @@
     </div>
 </div>
 
-<script>
-    // State management
-    let applications = JSON.parse(localStorage.getItem('annapurnaAppsV2')) || [];
-    let isAdminLoggedIn = false;
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Toast Notification System (Replaces alert())
-    function showToast(message, type = 'success') {
+    const FIREBASE_APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'annapurna-bhandar-portal';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}; 
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // State management
+    let applications = [];
+    let isAdminLoggedIn = false;
+    let currentSearch = '';
+    let currentSort = { column: 'timestamp', order: 'desc' };
+
+    // Toast Notification System
+    window.showToast = function(message, type = 'success') {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerText = message;
         
         container.appendChild(toast);
-        
-        // Trigger reflow to apply transition
         setTimeout(() => toast.classList.add('show'), 10);
-        
-        // Remove after 3 seconds
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    };
+
+    async function initFirebase() {
+        try {
+            if (typeof __initial_auth_token !== 'undefined') {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            
+            // Start listening to Firestore for real-time updates
+            const appsRef = collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'applications');
+            onSnapshot(appsRef, (snapshot) => {
+                applications = [];
+                snapshot.forEach(docSnap => {
+                    applications.push({ dbId: docSnap.id, ...docSnap.data() });
+                });
+                
+                // Sort by newest first
+                applications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                window.renderTable();
+            }, (error) => {
+                console.error("Firestore sync error:", error);
+                window.showToast("Failed to sync data", "error");
+            });
+        } catch (error) {
+            console.error("Auth error:", error);
+            window.showToast("Database connection failed", "error");
+        }
     }
 
     // Modal Handling
-    function openLoginModal() {
+    window.openLoginModal = function() {
         if (isAdminLoggedIn) {
-            // If already logged in, this acts as a logout button
             isAdminLoggedIn = false;
             document.getElementById('authBtn').innerText = "Admin Login";
             document.getElementById('authBtn').classList.remove('logout-btn');
-            showToast("Admin logged out successfully.");
-            renderTable();
+            
+            document.getElementById('exportExcelBtn').style.display = 'none';
+            document.getElementById('exportPdfBtn').style.display = 'none';
+            
+            window.showToast("Admin logged out successfully.");
+            window.renderTable();
         } else {
             document.getElementById('loginModal').style.display = 'flex';
             document.getElementById('adminId').value = '';
             document.getElementById('adminPass').value = '';
             document.getElementById('loginError').style.display = 'none';
         }
-    }
+    };
 
-    function closeLoginModal() {
+    window.closeLoginModal = function() {
         document.getElementById('loginModal').style.display = 'none';
-    }
+    };
 
-    // Login Logic (Password is santuri123 as requested)
-    function attemptLogin() {
+    window.attemptLogin = function() {
         const pass = document.getElementById('adminPass').value;
         const userId = document.getElementById('adminId').value.trim();
         
@@ -384,80 +495,136 @@
 
         if (pass === 'santuri123') {
             isAdminLoggedIn = true;
-            closeLoginModal();
+            window.closeLoginModal();
             document.getElementById('authBtn').innerText = "Logout Admin";
             document.getElementById('authBtn').classList.add('logout-btn');
-            showToast("Admin logged in successfully!");
-            renderTable(); // Re-render table to show admin inputs
+            
+            document.getElementById('exportExcelBtn').style.display = 'inline-block';
+            document.getElementById('exportPdfBtn').style.display = 'inline-block';
+
+            window.showToast("Admin logged in successfully!");
+            window.renderTable(); 
         } else {
             document.getElementById('loginError').innerText = "Incorrect Password!";
             document.getElementById('loginError').style.display = 'block';
         }
-    }
+    };
 
-    // Form Submission Logic
-    document.getElementById('applicationForm').addEventListener('submit', function(e) {
+    document.getElementById('applicationForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (!auth.currentUser) {
+            window.showToast("Database is connecting, please wait...", "error");
+            return;
+        }
         
-        const appId = document.getElementById('appId').value.trim();
+        const appIdInput = document.getElementById('appId').value.trim();
         const appName = document.getElementById('appName').value.trim();
         const panchayat = document.getElementById('panchayat').value;
         const block = document.getElementById('block').value;
 
-        // Check for duplicate Application ID
-        const isDuplicate = applications.some(app => app.id === appId);
-        
-        if (isDuplicate) {
-            document.getElementById('idError').style.display = 'block';
-            showToast("Application ID already exists!", "error");
-            return;
-        } else {
-            document.getElementById('idError').style.display = 'none';
+        const submitBtn = this.querySelector('.submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Submitting...";
+
+        try {
+            // Check for duplicate Application ID directly in the database
+            const docRef = doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'applications', appIdInput);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                document.getElementById('idError').style.display = 'block';
+                window.showToast("Application ID already exists!", "error");
+            } else {
+                document.getElementById('idError').style.display = 'none';
+                
+                // Save new application
+                await setDoc(docRef, {
+                    id: appIdInput,
+                    name: appName,
+                    panchayat: panchayat,
+                    block: block,
+                    adminReason: '', 
+                    timestamp: Date.now()
+                });
+                
+                window.showToast("Application submitted successfully!");
+                this.reset();
+            }
+        } catch (error) {
+            console.error("Submission error:", error);
+            window.showToast("Failed to submit application", "error");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Submit Application";
         }
-
-        // Save new application
-        const newApp = {
-            id: appId,
-            name: appName,
-            panchayat: panchayat,
-            block: block,
-            adminReason: '' // Reason is strictly admin controlled now
-        };
-
-        applications.push(newApp);
-        localStorage.setItem('annapurnaAppsV2', JSON.stringify(applications));
-
-        showToast("Application submitted successfully!");
-        this.reset();
-        
-        // Update table immediately
-        renderTable();
     });
 
-    // Render data in Table
-    function renderTable() {
+    window.handleSearch = function() {
+        currentSearch = document.getElementById('searchInput').value.toLowerCase();
+        window.renderTable();
+    };
+
+    window.handleSort = function(column) {
+        if (currentSort.column === column) {
+            currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = column;
+            currentSort.order = 'asc';
+        }
+        window.renderTable();
+    };
+
+    window.renderTable = function() {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
 
-        if (applications.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No applications submitted yet.</td></tr>';
+        // Reset all sort icons
+        document.querySelectorAll('.sort-icon').forEach(el => el.innerHTML = '');
+        
+        // Set current sort icon
+        const sortIconEl = document.getElementById(`sort_${currentSort.column}`);
+        if (sortIconEl) {
+            sortIconEl.innerHTML = currentSort.order === 'asc' ? ' ▲' : ' ▼';
+        }
+
+        // Apply Search Filter
+        let filteredApps = applications.filter(app => {
+            return (app.id && app.id.toLowerCase().includes(currentSearch)) ||
+                   (app.name && app.name.toLowerCase().includes(currentSearch)) ||
+                   (app.panchayat && app.panchayat.toLowerCase().includes(currentSearch));
+        });
+
+        // Apply Sorting
+        filteredApps.sort((a, b) => {
+            let valA = a[currentSort.column] || '';
+            let valB = b[currentSort.column] || '';
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return currentSort.order === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSort.order === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        if (filteredApps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#666;">No applications found.</td></tr>';
             return;
         }
 
-        applications.forEach((app, index) => {
+        filteredApps.forEach((app) => {
             const tr = document.createElement('tr');
             
-            // Determine what to show in the Reason column based on Auth state
             let reasonHTML = '';
             if (isAdminLoggedIn) {
-                // Admin View: Editable textarea
                 const buttonText = (app.adminReason && app.adminReason.trim() !== '') ? 'Update Remark' : 'Save Remark';
                 reasonHTML = `
-                    <textarea id="reason_${index}" class="admin-textarea" placeholder="Enter admin remark...">${app.adminReason}</textarea>
-                    <button class="save-btn" onclick="saveAdminReason(${index})">${buttonText}</button>
+                    <textarea id="reason_${app.dbId}" class="admin-textarea" placeholder="Enter admin remark...">${app.adminReason || ''}</textarea>
+                    <div class="action-buttons">
+                        <button class="save-btn" onclick="saveAdminReason('${app.dbId}')">${buttonText}</button>
+                        <button class="delete-btn" onclick="deleteApplication('${app.dbId}')">Delete</button>
+                    </div>
                 `;
             } else {
-                // Public View: Plain text or "Pending"
                 if (app.adminReason && app.adminReason.trim() !== '') {
                     reasonHTML = `<span style="font-weight: 500;">${app.adminReason}</span>`;
                 } else {
@@ -474,29 +641,91 @@
             `;
             tbody.appendChild(tr);
         });
-    }
+    };
 
-    // Save Admin Reason
-    window.saveAdminReason = function(index) {
-        const reasonValue = document.getElementById(`reason_${index}`).value;
-        const isUpdate = (applications[index].adminReason && applications[index].adminReason.trim() !== '');
+    window.saveAdminReason = async function(dbId) {
+        const appData = applications.find(a => a.dbId === dbId);
+        if(!appData) return;
         
-        applications[index].adminReason = reasonValue;
-        localStorage.setItem('annapurnaAppsV2', JSON.stringify(applications));
+        const reasonValue = document.getElementById(`reason_${dbId}`).value;
+        const isUpdate = (appData.adminReason && appData.adminReason.trim() !== '');
         
-        const actionWord = isUpdate ? 'updated' : 'saved';
-        showToast(`Remark ${actionWord} for Application ID: ${applications[index].id}`);
-        
-        // Update button text locally without refreshing the whole table 
-        // to prevent interrupting the admin if they are typing in other rows
-        const btn = document.querySelector(`button[onclick="saveAdminReason(${index})"]`);
-        if (btn) {
-            btn.innerText = (reasonValue.trim() !== '') ? 'Update Remark' : 'Save Remark';
+        try {
+            const docRef = doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'applications', dbId);
+            await updateDoc(docRef, { adminReason: reasonValue });
+            
+            const actionWord = isUpdate ? 'updated' : 'saved';
+            window.showToast(`Remark ${actionWord} for Application ID: ${appData.id}`);
+            
+            const btn = document.querySelector(`button[onclick="saveAdminReason('${dbId}')"]`);
+            if (btn) btn.innerText = (reasonValue.trim() !== '') ? 'Update Remark' : 'Save Remark';
+        } catch (error) {
+            console.error("Error updating doc:", error);
+            window.showToast("Error updating remark", "error");
         }
     };
 
-    // Initial render call
-    renderTable();
+    window.deleteApplication = async function(dbId) {
+        // Delete application directly with toast notification
+        try {
+            const docRef = doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'applications', dbId);
+            await deleteDoc(docRef);
+            window.showToast("Application deleted successfully", "success");
+        } catch (error) {
+            console.error("Error deleting doc:", error);
+            window.showToast("Error deleting application", "error");
+        }
+    };
+
+    // Excel Export
+    window.exportToExcel = function() {
+        if(applications.length === 0) return window.showToast("No data to export", "error");
+        
+        const data = applications.map(app => ({
+            "Application ID": app.id,
+            "Beneficiary Name": app.name,
+            "Panchayat": app.panchayat,
+            "Block": app.block,
+            "Admin Remark": app.adminReason || "Pending Admin Review"
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Applications");
+        XLSX.writeFile(wb, "Annapurna_Bhandar_List.xlsx");
+    };
+
+    // PDF Export
+    window.exportToPDF = function() {
+        if(applications.length === 0) return window.showToast("No data to export", "error");
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.text("Annapurna Bhandar Missing List - Santuri Block", 14, 15);
+        
+        const tableColumn = ["App ID", "Beneficiary Name", "Panchayat", "Block", "Admin Remark"];
+        const tableRows = applications.map(app => [
+            app.id,
+            app.name,
+            app.panchayat,
+            app.block,
+            app.adminReason || "Pending Admin Review"
+        ]);
+        
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 20,
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [0, 86, 179] }
+        });
+        
+        doc.save("Annapurna_Bhandar_List.pdf");
+    };
+
+    // Start App
+    initFirebase();
 </script>
 
 </body>
